@@ -1,0 +1,20 @@
+const fs=require('node:fs'),path=require('node:path');
+const root=path.join(__dirname,'..'),out=path.join(root,'dist');
+fs.mkdirSync(path.join(out,'vendor'),{recursive:true});
+let fragment=fs.readFileSync(path.join(root,'src/warehouse.html'),'utf8');
+fragment=fragment.replace('https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js','./vendor/three.min.js');
+fragment=fragment.replace(/<i data-lucide="[^"]+"[^>]*><\/i>/g,'');
+fragment=fragment.replace('<script src="./vendor/three.min.js"></script>','<script src="./lazy-catalog.js"></script>\n<script src="./vendor/three.min.js"></script>');
+fragment=fragment.replace('c=M.createCatalog();','c=M.createLazyCatalog(1000000);');
+fragment=fragment.replace('c.byDb.get(t.db).findIndex(row=>row.id===id)','t.index');
+// Do not label a bounded search result as a complete catalog count.
+fragment=fragment.replace("+' · '+inv.total+' 张表'","+' · '+(inv.truncated?'部分匹配 '+inv.total+'（扫描上限 10,000；请限定库或输入完整表名）':inv.total+' 张表')");
+fragment=fragment.replace("' 条血缘';rebuild();","' 条血缘 · 按需模拟目录';rebuild();");
+fragment=fragment.replace('renderDetails();const inv=inventory();',"renderDetails();if(g.truncated)$('#wl-graph-count').textContent+=' · 遍历预算已达上限';const inv=inventory();");
+fragment=fragment.replace("state.query?'没有匹配的表或字段'","state.query?(inv.truncated?'本次扫描未找到，请限定库或输入完整表名':'没有匹配的表或字段')");
+const shell='<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DB Factory</title><style>:root{color-scheme:light dark}body{margin:0;padding:12px;background:light-dark(#eef1f2,#1b232b)}[hidden]{display:none!important}</style></head><body>';
+fs.writeFileSync(path.join(out,'index.html'),shell+fragment+'</body></html>');
+fs.copyFileSync(path.join(root,'src/lazy-catalog.js'),path.join(out,'lazy-catalog.js'));
+fs.copyFileSync(path.join(root,'node_modules/three/build/three.min.js'),path.join(out,'vendor/three.min.js'));
+fs.copyFileSync(path.join(root,'node_modules/three/LICENSE'),path.join(out,'vendor/THREE-LICENSE.txt'));
+console.log('Built dist/ with locally bundled Three.js; no CDN is required.');
